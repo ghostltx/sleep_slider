@@ -1,0 +1,34 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# PyInstaller/build output
+build/
+dist/
+*.spec
+dist_build_lock
+
+# Generated previews and local QA captures
+*_preview.png
+*_qa.png
+
+# Release binaries are attached to GitHub Releases, not stored in Git history.
+outputs/*.exe
+outputs/*.pdb
+outputs/sleep_tray_switch/
+
+# Local workspace folders
+.omx/
+work/__pycache__/
+work/pyinstaller_*/
+work/SleepSliderWinUI/
+work/SleepTraySwitch/
+work/sleep_dot_*
+work/sleep_slider_centered.*
+work/sleep_slider_clean.*
+work/sleep_slider_compact.*
+work/sleep_slider_exe_icon_extracted.png
+work/sleep_slider_source.*
+work/sleep_slider_switch.*
