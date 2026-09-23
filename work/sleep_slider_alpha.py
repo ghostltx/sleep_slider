@@ -37,6 +37,31 @@ TRIGGER_PROGRESS = 0.88
 FRAME_INTERVAL_MS = 16
 SPRING_DURATION_MS = 130
 
+
+def set_ui_scale(scale: float) -> float:
+    """Apply one of the supported compact/full control sizes."""
+    global UI_SCALE, PANEL_WIDTH, PANEL_HEIGHT
+    global TRACK_LEFT, TRACK_WIDTH, TRACK_HEIGHT, TRACK_TOP, BAR_HEIGHT
+    global THUMB_INSET, AURA_EXPAND, AURA_TOP_GAP, AURA_BOTTOM_GAP
+    global AURA_TRACK_BOTTOM, AURA_BLUR, SHADOW_BLUR, COUNTDOWN_GAP
+    UI_SCALE = 0.5 if float(scale) < 0.75 else 1.0
+    PANEL_WIDTH = round(70 * UI_SCALE)
+    PANEL_HEIGHT = round(46 * UI_SCALE)
+    TRACK_LEFT = round(10 * UI_SCALE)
+    TRACK_WIDTH = round(50 * UI_SCALE)
+    TRACK_HEIGHT = round(22 * UI_SCALE)
+    TRACK_TOP = round(10 * UI_SCALE)
+    BAR_HEIGHT = max(1, round(2 * UI_SCALE))
+    THUMB_INSET = max(1, round(4 * UI_SCALE))
+    AURA_EXPAND = max(1, round(5 * UI_SCALE))
+    AURA_TOP_GAP = max(1, round(7 * UI_SCALE))
+    AURA_BOTTOM_GAP = max(1, round(8 * UI_SCALE))
+    AURA_TRACK_BOTTOM = max(1, round(6 * UI_SCALE))
+    AURA_BLUR = 1.9 * UI_SCALE
+    SHADOW_BLUR = 1.1 * UI_SCALE
+    COUNTDOWN_GAP = max(1, round(4 * UI_SCALE))
+    return UI_SCALE
+
 WS_POPUP = 0x80000000
 WS_EX_TOOLWINDOW = 0x00000080
 WS_EX_LAYERED = 0x00080000
@@ -308,6 +333,24 @@ class AlphaSleepSlider:
         self.last_topmost_enforce = now
         user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+
+    def set_ui_scale(self, scale: float) -> float:
+        """Resize the live layered window while keeping its center fixed."""
+        old_rect = RECT()
+        if self.hwnd:
+            user32.GetWindowRect(self.hwnd, ctypes.byref(old_rect))
+        applied = set_ui_scale(scale)
+        if self.hwnd:
+            old_width = old_rect.right - old_rect.left
+            old_height = old_rect.bottom - old_rect.top
+            new_x = old_rect.left + (old_width - PANEL_WIDTH) // 2
+            new_y = old_rect.top + (old_height - PANEL_HEIGHT) // 2
+            user32.SetWindowPos(
+                self.hwnd, None, new_x, new_y, PANEL_WIDTH, PANEL_HEIGHT,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+            self.draw()
+        return applied
 
     @staticmethod
     def rect_covers_monitor(window: RECT, monitor: RECT, tolerance: int = 2) -> bool:
