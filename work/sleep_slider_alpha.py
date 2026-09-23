@@ -39,7 +39,9 @@ COUNTDOWN_SECONDS = 5.0
 TRIGGER_PROGRESS = 0.88
 FRAME_INTERVAL_MS = 16
 SPRING_DURATION_MS = 130
-DEFAULT_POSITION = (1829, 1035)
+# A new computer may have a different resolution or taskbar placement.  When
+# no settings file exists, create() falls back to the local taskbar geometry.
+DEFAULT_POSITION = None
 DEFAULT_LOCKED = True
 SETTINGS_FILE = (Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
                  / "SleepSlider" / "settings.json")
