@@ -12,10 +12,25 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 APP_NAME = "Sleep Slider"
 CLASS_NAME = "SleepSliderAlphaWindow"
-PANEL_WIDTH, PANEL_HEIGHT = 70, 46
-TRACK_LEFT, TRACK_WIDTH, TRACK_HEIGHT = 10, 50, 22
-TRACK_TOP = 10
-BAR_HEIGHT = 2
+# Compact presentation: the original control was 70x46 logical pixels.  Keep
+# all interaction geometry in the same coordinate system so dragging and hit
+# testing shrink together with the rendered artwork.
+UI_SCALE = 0.5
+PANEL_WIDTH = round(70 * UI_SCALE)
+PANEL_HEIGHT = round(46 * UI_SCALE)
+TRACK_LEFT = round(10 * UI_SCALE)
+TRACK_WIDTH = round(50 * UI_SCALE)
+TRACK_HEIGHT = round(22 * UI_SCALE)
+TRACK_TOP = round(10 * UI_SCALE)
+BAR_HEIGHT = max(1, round(2 * UI_SCALE))
+THUMB_INSET = max(1, round(4 * UI_SCALE))
+AURA_EXPAND = max(1, round(5 * UI_SCALE))
+AURA_TOP_GAP = max(1, round(7 * UI_SCALE))
+AURA_BOTTOM_GAP = max(1, round(8 * UI_SCALE))
+AURA_TRACK_BOTTOM = max(1, round(6 * UI_SCALE))
+AURA_BLUR = 1.9 * UI_SCALE
+SHADOW_BLUR = 1.1 * UI_SCALE
+COUNTDOWN_GAP = max(1, round(4 * UI_SCALE))
 RENDER_SCALE = 8
 COUNTDOWN_SECONDS = 5.0
 TRIGGER_PROGRESS = 0.88
@@ -568,15 +583,15 @@ class AlphaSleepSlider:
             # It follows the switch outline, while the button itself remains opaque.
             aura_mask = Image.new("L", (width, height), 0)
             aura_draw = ImageDraw.Draw(aura_mask)
-            expand = 5 * s
+            expand = AURA_EXPAND * s
             aura_draw.rounded_rectangle((left - expand, top - expand,
-                                        right + expand, bottom + 6 * s),
+                                        right + expand, bottom + AURA_TRACK_BOTTOM * s),
                                       radius=radius + expand, fill=255)
-            aura_mask = aura_mask.filter(ImageFilter.GaussianBlur(1.9 * s))
+            aura_mask = aura_mask.filter(ImageFilter.GaussianBlur(AURA_BLUR * s))
             aura = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             aura_draw = ImageDraw.Draw(aura)
-            aura_top = top - 7 * s
-            aura_bottom = bottom + 8 * s
+            aura_top = top - AURA_TOP_GAP * s
+            aura_bottom = bottom + AURA_BOTTOM_GAP * s
             for y in range(max(0, aura_top), min(height, aura_bottom)):
                 fraction = max(0.0, min(1.0, (y - aura_top) / (aura_bottom - aura_top)))
                 red = int(3 * (1 - fraction))
@@ -592,7 +607,7 @@ class AlphaSleepSlider:
         track_outline = (31, 151, 240, 255) if progress >= 0.5 else (171, 177, 190, 255)
         draw.rounded_rectangle((left, top, right, bottom), radius=radius,
                                fill=track_fill, outline=track_outline, width=s)
-        thumb_radius = radius - 4 * s
+        thumb_radius = max(1, radius - THUMB_INSET * s)
         thumb_left, thumb_right = left + radius, right - radius
         thumb_x = round(thumb_left + (thumb_right - thumb_left) * progress)
         thumb_y = (top + bottom) // 2
@@ -602,7 +617,7 @@ class AlphaSleepSlider:
              thumb_x + thumb_radius, thumb_y + thumb_radius + s),
             fill=(0, 0, 0, 78),
         )
-        image.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(1.1 * s)))
+        image.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(SHADOW_BLUR * s)))
         draw = ImageDraw.Draw(image)
         draw.ellipse((thumb_x - thumb_radius, thumb_y - thumb_radius,
                       thumb_x + thumb_radius, thumb_y + thumb_radius),
@@ -610,7 +625,7 @@ class AlphaSleepSlider:
         if countdown_frac is not None:
             # Thin orange progress bar under the track, filling over the countdown.
             frac = max(0.0, min(1.0, countdown_frac))
-            bar_left, bar_top = TRACK_LEFT * s, (TRACK_TOP + TRACK_HEIGHT + 4) * s
+            bar_left, bar_top = TRACK_LEFT * s, (TRACK_TOP + TRACK_HEIGHT + COUNTDOWN_GAP) * s
             bar_right, bar_bottom = (TRACK_LEFT + TRACK_WIDTH) * s, bar_top + BAR_HEIGHT * s
             draw.rounded_rectangle((bar_left, bar_top, bar_right, bar_bottom),
                                    radius=s, fill=(58, 62, 70, 170))
