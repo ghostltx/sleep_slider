@@ -43,6 +43,8 @@ NOTIFYICON_VERSION_4 = 4
 ID_TRAY_TOGGLE = 2102
 ID_TRAY_LOCK = 2103
 ID_TRAY_EXIT = 2104
+ID_TRAY_SCALE_HALF = 2105
+ID_TRAY_SCALE_FULL = 2106
 
 ERROR_ALREADY_EXISTS = 183
 EVENT_MODIFY_STATE = 0x0002
@@ -306,8 +308,12 @@ class IntegratedSlider(core.AlphaSleepSlider):
         menu = core.user32.CreatePopupMenu()
         toggle_flags = core.MF_STRING | (core.MF_CHECKED if self.user_visible else 0)
         lock_flags = core.MF_STRING | (core.MF_CHECKED if self.locked else 0)
+        half_flags = core.MF_STRING | (core.MF_CHECKED if core.UI_SCALE < 0.75 else 0)
+        full_flags = core.MF_STRING | (core.MF_CHECKED if core.UI_SCALE >= 0.75 else 0)
         core.user32.AppendMenuW(menu, toggle_flags, ID_TRAY_TOGGLE, "显示桌面睡眠开关")
         core.user32.AppendMenuW(menu, lock_flags, ID_TRAY_LOCK, "锁定位置")
+        core.user32.AppendMenuW(menu, half_flags, ID_TRAY_SCALE_HALF, "0.5倍")
+        core.user32.AppendMenuW(menu, full_flags, ID_TRAY_SCALE_FULL, "1倍")
         core.user32.AppendMenuW(menu, core.MF_SEPARATOR, 0, None)
         core.user32.AppendMenuW(menu, core.MF_STRING, ID_TRAY_EXIT, "退出程序")
         cursor = core.screen_cursor()
@@ -356,6 +362,10 @@ class IntegratedSlider(core.AlphaSleepSlider):
             self.locked = not self.locked
             self.draw()
             self.emit("locked", self.locked)
+        elif command == ID_TRAY_SCALE_HALF:
+            self.set_ui_scale(0.5)
+        elif command == ID_TRAY_SCALE_FULL:
+            self.set_ui_scale(1.0)
         elif command == ID_TRAY_EXIT:
             self.shutdown()
 
