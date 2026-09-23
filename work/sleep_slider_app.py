@@ -245,6 +245,7 @@ class IntegratedSlider(core.AlphaSleepSlider):
             elif command == "set_locked":
                 self.locked = bool(value)
                 self.draw()
+                self.save_position()
                 self.emit("locked", self.locked)
             elif command == "start_countdown" and self.countdown_started is None:
                 self.progress = 1.0
@@ -361,6 +362,7 @@ class IntegratedSlider(core.AlphaSleepSlider):
         elif command == ID_TRAY_LOCK:
             self.locked = not self.locked
             self.draw()
+            self.save_position()
             self.emit("locked", self.locked)
         elif command == ID_TRAY_SCALE_HALF:
             self.set_ui_scale(0.5)

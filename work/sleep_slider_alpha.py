@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import json
+import os
 import time
 from ctypes import wintypes
+from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
@@ -36,6 +39,10 @@ COUNTDOWN_SECONDS = 5.0
 TRIGGER_PROGRESS = 0.88
 FRAME_INTERVAL_MS = 16
 SPRING_DURATION_MS = 130
+DEFAULT_POSITION = (1829, 1035)
+DEFAULT_LOCKED = True
+SETTINGS_FILE = (Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+                 / "SleepSlider" / "settings.json")
 
 
 def set_ui_scale(scale: float) -> float:
@@ -61,6 +68,27 @@ def set_ui_scale(scale: float) -> float:
     SHADOW_BLUR = 1.1 * UI_SCALE
     COUNTDOWN_GAP = max(1, round(4 * UI_SCALE))
     return UI_SCALE
+
+
+def load_settings() -> dict:
+    try:
+        with SETTINGS_FILE.open("r", encoding="utf-8") as stream:
+            value = json.load(stream)
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def save_settings(value: dict) -> None:
+    try:
+        SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = SETTINGS_FILE.with_suffix(".tmp")
+        with temporary.open("w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+        temporary.replace(SETTINGS_FILE)
+    except OSError:
+        # Position memory is convenience state; failure must not stop the tray app.
+        pass
 
 WS_POPUP = 0x80000000
 WS_EX_TOOLWINDOW = 0x00000080
@@ -280,10 +308,20 @@ def register_class() -> None:
 
 class AlphaSleepSlider:
     def __init__(self, dry_run: bool) -> None:
+        settings = load_settings()
+        saved_scale = settings.get("scale")
+        if isinstance(saved_scale, (int, float)):
+            set_ui_scale(saved_scale)
         self.dry_run = dry_run
         self.hwnd = 0
         self.progress = 0.0
-        self.locked = False
+        self.locked = bool(settings.get("locked", DEFAULT_LOCKED))
+        saved_x = settings.get("x")
+        saved_y = settings.get("y")
+        if isinstance(saved_x, int) and isinstance(saved_y, int):
+            self.saved_position = (saved_x, saved_y)
+        else:
+            self.saved_position = DEFAULT_POSITION
         self.dragging_thumb = False
         self.dragging_window = False
         self.window_offset = (0, 0)
@@ -301,7 +339,9 @@ class AlphaSleepSlider:
     def create(self) -> None:
         rect = taskbar_rect()
         self.taskbar_hwnd = user32.FindWindowW("Shell_TrayWnd", None)
-        if rect:
+        if self.saved_position is not None:
+            x, y = self.saved_position
+        elif rect:
             x = rect.left + (rect.right - rect.left - PANEL_WIDTH) // 2
             # Explorer owns the taskbar surface and can paint above a layered tool window.
             # Keep the control visually attached while placing it just above the taskbar.
@@ -324,6 +364,20 @@ class AlphaSleepSlider:
         self.draw()
         user32.ShowWindow(self.hwnd, SW_SHOWNOACTIVATE)
         user32.SetTimer(self.hwnd, 1, FRAME_INTERVAL_MS, None)
+        self.save_position()
+
+    def save_position(self) -> None:
+        if not self.hwnd:
+            return
+        rect = RECT()
+        if not user32.GetWindowRect(self.hwnd, ctypes.byref(rect)):
+            return
+        save_settings({
+            "x": int(rect.left),
+            "y": int(rect.top),
+            "scale": float(UI_SCALE),
+            "locked": bool(self.locked),
+        })
 
     def ensure_above_taskbar(self) -> None:
         """Restore topmost z-order without moving the control or stealing focus."""
@@ -350,6 +404,7 @@ class AlphaSleepSlider:
                 SWP_NOZORDER | SWP_NOACTIVATE,
             )
             self.draw()
+            self.save_position()
         return applied
 
     @staticmethod
@@ -448,6 +503,7 @@ class AlphaSleepSlider:
             self.show_menu()
             return 0
         if message == WM_DESTROY:
+            self.save_position()
             user32.KillTimer(self.hwnd, 1)
             WINDOWS.pop(int(self.hwnd), None)
             user32.PostQuitMessage(0)
@@ -489,6 +545,7 @@ class AlphaSleepSlider:
         if self.dragging_window:
             self.dragging_window = False
             user32.ReleaseCapture()
+            self.save_position()
             return
         if not self.dragging_thumb:
             return
@@ -558,6 +615,7 @@ class AlphaSleepSlider:
         if command == ID_LOCK:
             self.locked = not self.locked
             self.draw()
+            self.save_position()
         elif command == ID_CLOSE:
             user32.DestroyWindow(self.hwnd)
 
